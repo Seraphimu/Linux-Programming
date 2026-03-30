@@ -319,6 +319,3 @@ int test_close_pipe_read() {
 	return 0;
 }
 
-
-
-
