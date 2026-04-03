@@ -1,18 +1,48 @@
 #include <iostream>
+#include <string>
 #include <cassert>
 #include <cstring>
 #include <unistd.h>
 #include <fcntl.h>
+#include <cstdlib>
 #include <sys/wait.h>
+
+#include <vector>
 
 const int MAX = 64;
 
 //关闭父进程的读端，让子进程继续写入，观察现象
 void pipeCloseRead();
+//让父进程控制子进程
+void processPool();
+void createSubProcess();
+void loadTaskFunc();
+
+class SubEp {
+public:
+	//构造方法
+	SubEp(pid_t subId, int writeFd) : 
+		subId_(subId), writeFd_(writeFd)
+	{
+		//为子进程命名
+		char nameBuffer[1024];
+		snprintf(nameBuffer, sizeof nameBuffer, "process-%d[pid(%d)-fd(%d)]", num++, subId_, writeFd_);
+		name_= nameBuffer;
+	}
+
+public:
+	static int num;
+	std::string name_;
+	pid_t subId_;
+	int writeFd_;
+};
+
+int SubEp::num = 0;
 
 int main(void) {
 
-	pipeCloseRead();
+	//pipeCloseRead();
+	processPool();
 
 	return 0;
 }
@@ -69,3 +99,25 @@ void pipeCloseRead() {
 	//看看高8位：
 	std::cout << "high 8 bit: " << (status >> 8) << std::endl;
 }
+
+void processPool() {
+	const int PROCESS_NUM = 5;
+	//创建5个子进程
+	//为什么这样写能创建一堆子进程出来？
+	//因为没有加exit()子进程运行之后，继续运行这段创建子进程的代码，那就太恐怖了
+	for (int i = 0; i < 5; i++) {
+		//创建管道
+		int fds[2];
+		int ret = pipe(fds);
+		assert(ret == 0);
+
+
+		//创建子进程
+		pid_t id = fork();
+		if (id == 0) {
+			std::cout << "我是子进程: " << getpid() << std::endl;
+			exit(0);
+		}
+		sleep(1);
+	}
+} 
