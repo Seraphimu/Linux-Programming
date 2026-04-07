@@ -6,6 +6,12 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+
+const char * PATH_NAME = ".";
+const int PROJ_ID = 0x666;
+const int SIZE = 4096;
 
 const int MAX = 1024;
 
@@ -25,6 +31,13 @@ void testCloseRead();
 //创建
 void testCreateNamedPipe();
 
+//Create Shared Memory
+void testShmCreate();
+
+//开辟一块共享内存空间，然后将进程和这块共享内存关联起来，
+//5秒后取消关联并删除共享内存空间
+void testShmCreateDelete();
+
 int main(void) {
 	//testPipeCreate();	
 	//testPipe();
@@ -33,7 +46,9 @@ int main(void) {
 	//testWriteGtRead();
 //	testCloseWrite();
 	//testCloseRead();
-	testCreateNamedPipe();
+//	testCreateNamedPipe();
+	//testShmCreate();
+	testShmCreateDelete();
 
 	return 0;
 }
@@ -260,3 +275,39 @@ void testCreateNamedPipe() {
 	(void)ret;
 
 }
+
+void testShmCreate() {
+	//Virtual Memory Position?
+	key_t key = ftok(PATH_NAME, PROJ_ID);
+	assert(key != -1);
+
+	//std::cout << "key: " << key << std::endl;
+	printf("key: %p\n", key);
+
+	//Create Shm
+
+	int shmId = shmget(key, SIZE, IPC_CREAT | IPC_EXCL | 0664);
+	assert(-1 != shmId);
+	std::cout << "Shared Memory Id is " << shmId << std::endl;
+}
+
+void testShmCreateDelete() {
+	key_t key = ftok(PATH_NAME, PROJ_ID);
+	assert(key != -1);
+
+	printf("key: %p\n", key);
+	int shmId = shmget(key, SIZE, IPC_CREAT | IPC_EXCL | 0664);
+	assert(shmId != -1);
+	std::cout << "Shared Memory Id is " << shmId << std::endl;
+
+	char * str = (char *)shmat(shmId, nullptr, 0);
+	sleep(5);
+	//Un Follow
+	if (shmdt(str) == -1) {
+		perror("shmdt");
+		exit(-1);
+	}
+	//Delete
+	shmctl(shmId, IPC_RMID, nullptr);
+}
+
